@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "*.tmpl": "html",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "lauxlib.h": "c",
+        "stdio.h": "c",
+        "lua.h": "c",
+        "lualib.h": "c"
     }
 }
