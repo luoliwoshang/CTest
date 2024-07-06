@@ -5,6 +5,7 @@
         "lauxlib.h": "c",
         "stdio.h": "c",
         "lua.h": "c",
-        "lualib.h": "c"
+        "lualib.h": "c",
+        "string.h": "c"
     }
 }
