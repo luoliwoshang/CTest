@@ -7,17 +7,6 @@
 #include <arpa/inet.h> // 包含这个头文件以获取 inet_ntop 的声明
 #include <netdb.h>
 
-void ptmemory(char *desc, struct sockaddr_in serv_addr)
-{
-    printf("%s:\n", desc);
-    for (size_t i = 0; i < sizeof(serv_addr); i++)
-    {
-        printf("%02x ", ((unsigned char *)&serv_addr)[i]);
-        if ((i + 1) % 16 == 0)
-            printf("\n");
-    }
-    printf("\n");
-}
 int main()
 {
     int sockfd;
@@ -41,19 +30,11 @@ int main()
 
     memset(&serv_addr, 0, sizeof(serv_addr));
 
-    ptmemory("内存初始化为0后", serv_addr);
-
     serv_addr.sin_family = AF_INET;
-
-    ptmemory("sin_family后:", serv_addr);
 
     serv_addr.sin_port = htons(1234);
 
-    ptmemory("sin_port后:", serv_addr);
-
     memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
-
-    ptmemory("memcpy后:", serv_addr);
 
     unsigned char *ip_addr = (unsigned char *)server->h_addr;
 

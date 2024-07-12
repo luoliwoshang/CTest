@@ -21,11 +21,6 @@ int main()
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(1234);
 
-    printf("Alignment of sockaddr_in: %zu bytes\n", __alignof__(struct sockaddr_in));
-    printf("Alignment of short: %zu bytes\n", __alignof__(short));
-    printf("Alignment of unsigned short: %zu bytes\n", __alignof__(unsigned short));
-    printf("Alignment of struct in_addr: %zu bytes\n", __alignof__(struct in_addr));
-    printf("Creating socket... %lu\n", sizeof(serv_addr));
     if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("ERROR on binding");
