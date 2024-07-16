@@ -4,9 +4,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <netinet/in.h>
 
 int main()
 {
@@ -27,22 +24,25 @@ int main()
         close(sockfd);
         exit(1);
     }
-    printf("Socket bound to port 1234.\n");
 
-    if (listen(sockfd, 5) < 0)
-    {
-        perror("ERROR on listening");
-        close(sockfd);
-        exit(1);
-    }
+    listen(sockfd, 5);
     printf("Listening on port 1234...\n");
 
     clilen = sizeof(cli_addr);
+    printf("client address size: %d\n", clilen);
     newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
     printf("Connection accepted.\n");
 
-    read(newsockfd, buffer, 255);
-    printf("Received message: %s\n", buffer);
+    while (1)
+    {
+        memset(buffer, 0, 256);
+        read(newsockfd, buffer, 255);
+        if (strcmp(buffer, "exit\n") == 0)
+        {
+            break;
+        }
+        printf("Received message: %s", buffer);
+    }
 
     close(newsockfd);
     close(sockfd);
