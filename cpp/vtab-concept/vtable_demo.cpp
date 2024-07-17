@@ -25,11 +25,13 @@ void printVtable(void *obj)
 {
     // 将 obj 解释为双重指针，并解引用获取 vptr
     void **vptr = *(void ***)obj;
-    // vptr 是该对象的第一个成员，其地址为obj的地址，其值为vtable的地址
+    // vptr 是该对象的第一个成员，其地址为obj的地址，其值应该为vtable的地址
 
     std::cout << "Object address: " << obj << std::endl;  // Base:0x16b0aaca0 Derived:0x16b0aac98
-    std::cout << "Vptr address: " << &vptr << std::endl;  // 均为同一个 Vptr address: 0x16b0aac50 ，为什么这里的 Vptr 的地址比 Object 地址小 80 字节
     std::cout << "Vtable address: " << vptr << std::endl; // Base: 0x1005cc0b0 Derived: 0x1005cc0d8
+
+    void **actual_vptr_address = (void **)obj;
+    std::cout << "Vptr address (within object): " << actual_vptr_address << std::endl; // 打印虚指针地址
 
     // 将vptr转换为具体的函数指针类型指针
     using FuncPointer = void (*)(void);
