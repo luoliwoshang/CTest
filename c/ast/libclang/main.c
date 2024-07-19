@@ -74,7 +74,20 @@ const char *get_type_spelling(CXType type)
     return result;
 }
 
-void print_cursor_info(CXCursor cursor, const char *target_dir)
+// 用于存储当前的命名空间和类名
+typedef struct
+{
+    char namespace_name[1024];
+    char class_name[1024];
+} Context;
+
+void init_context(Context *context)
+{
+    context->namespace_name[0] = '\0';
+    context->class_name[0] = '\0';
+}
+
+void print_cursor_info(CXCursor cursor, Context *context)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
 
@@ -88,54 +101,55 @@ void print_cursor_info(CXCursor cursor, const char *target_dir)
 
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
 
-    // 获取文件的绝对路径
-    const char *absolute_path = get_absolute_path(clang_getCString(file_name));
-
-    // 仅输出目标目录中的文件信息
-    if (strstr(absolute_path, target_dir) != NULL)
+    // 打印命名空间:类名:函数名
+    if (context->namespace_name[0] != '\0' && context->class_name[0] != '\0')
     {
-        printf("(%s):%s\n", get_cursor_kind_spelling(cursor_kind), clang_getCString(cursor_spelling));
-        printf("Pos: line %d, column %d\n", line, column);
-        printf("File: '%s'\n", absolute_path);
-
-        if (clang_getCString(symbol))
-        {
-            printf("Symbol: '%s'\n", clang_getCString(symbol));
-        }
-        else
-        {
-            printf("Symbol: None\n");
-        }
-
-        // 输出返回值类型
-        if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl)
-        {
-            CXType return_type = clang_getCursorResultType(cursor);
-            const char *return_type_spelling = get_type_spelling(return_type);
-            printf("Return Type: %s\n", return_type_spelling);
-            free((void *)return_type_spelling);
-
-            // 输出参数信息
-            int num_args = clang_Cursor_getNumArguments(cursor);
-            printf("Parameters: (");
-            for (int i = 0; i < num_args; ++i)
-            {
-                CXCursor arg_cursor = clang_Cursor_getArgument(cursor, i);
-                CXString arg_str = clang_getCursorSpelling(arg_cursor);
-                CXType arg_type = clang_getCursorType(arg_cursor);
-                const char *arg_cstr = clang_getCString(arg_str);
-
-                const char *arg_type_spelling = get_type_spelling(arg_type);
-                printf("%s%s%s", arg_type_spelling, arg_cstr, (i < num_args - 1) ? ", " : "");
-
-                clang_disposeString(arg_str);
-                free((void *)arg_type_spelling);
-            }
-            printf(")\n");
-        }
-
-        printf("----------------------------------------\n");
+        printf("%s:%s:%s\n", context->namespace_name, context->class_name, clang_getCString(cursor_spelling));
     }
+    else if (context->class_name[0] != '\0')
+    {
+        printf("%s:%s\n", context->class_name, clang_getCString(cursor_spelling));
+    }
+    else
+    {
+        printf("%s\n", clang_getCString(cursor_spelling));
+    }
+
+    printf("Pos: line %d, column %d\n", line, column);
+    printf("File: '%s'\n", clang_getCString(file_name));
+
+    if (clang_getCString(symbol))
+    {
+        printf("Symbol: '%s'\n", clang_getCString(symbol));
+    }
+    else
+    {
+        printf("Symbol: None\n");
+    }
+
+    // 输出返回值类型
+    if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl)
+    {
+        CXType return_type = clang_getCursorResultType(cursor);
+        const char *return_type_spelling = get_type_spelling(return_type);
+        printf("Return Type: %s\n", return_type_spelling);
+        free((void *)return_type_spelling);
+
+        // 输出参数信息
+        int num_args = clang_Cursor_getNumArguments(cursor);
+        printf("Parameters: (");
+        for (int i = 0; i < num_args; ++i)
+        {
+            CXCursor arg_cursor = clang_Cursor_getArgument(cursor, i);
+            CXType arg_type = clang_getCursorType(arg_cursor);
+            const char *arg_type_spelling = get_type_spelling(arg_type);
+            printf("%s%s", arg_type_spelling, (i < num_args - 1) ? ", " : "");
+            free((void *)arg_type_spelling);
+        }
+        printf(")\n");
+    }
+
+    printf("----------------------------------------\n");
 
     clang_disposeString(cursor_spelling);
     clang_disposeString(symbol);
@@ -144,16 +158,26 @@ void print_cursor_info(CXCursor cursor, const char *target_dir)
 
 enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
-    const char *target_dir = (const char *)client_data;
+    Context *context = (Context *)client_data;
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
+
     if (cursor_kind == CXCursor_Namespace)
     {
-        printf("(Namespace): %s\n---------------------\n", clang_getCString(clang_getCursorSpelling(cursor)));
+        CXString namespace_name = clang_getCursorSpelling(cursor);
+        snprintf(context->namespace_name, sizeof(context->namespace_name), "%s", clang_getCString(namespace_name));
+        clang_disposeString(namespace_name);
     }
-    if (cursor_kind == CXCursor_FunctionDecl || cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_ClassDecl)
+    else if (cursor_kind == CXCursor_ClassDecl)
     {
-        print_cursor_info(cursor, target_dir);
+        CXString class_name = clang_getCursorSpelling(cursor);
+        snprintf(context->class_name, sizeof(context->class_name), "%s", clang_getCString(class_name));
+        clang_disposeString(class_name);
     }
+    else if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl)
+    {
+        print_cursor_info(cursor, context);
+    }
+
     return CXChildVisit_Recurse;
 }
 
@@ -169,16 +193,13 @@ void parse(const char *filename)
         return;
     }
 
-    const char *absolute_path = get_absolute_path(filename); // 获取目标文件的绝对路径
+    Context context;
+    init_context(&context);
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
-    clang_visitChildren(cursor, visitor, (CXClientData)absolute_path);
+    clang_visitChildren(cursor, visitor, &context);
 
     clang_disposeTranslationUnit(unit);
     clang_disposeIndex(index);
-    if (absolute_path != filename)
-    {
-        free((void *)absolute_path); // 释放由realpath分配的内存
-    }
 }
 
 int main(int argc, char **argv)
