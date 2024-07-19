@@ -1,6 +1,7 @@
 #include <clang-c/Index.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // 获取绝对路径
 const char *get_absolute_path(const char *path)
@@ -63,7 +64,7 @@ const char *get_cursor_kind_spelling(enum CXCursorKind kind)
     }
 }
 
-void print_cursor_info(CXCursor cursor)
+void print_cursor_info(CXCursor cursor, const char *target_dir)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
 
@@ -77,38 +78,39 @@ void print_cursor_info(CXCursor cursor)
 
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
 
-    // (CXXMethod):sayHello
-    printf("(%s):%s\n", get_cursor_kind_spelling(cursor_kind), clang_getCString(cursor_spelling));
-
     // 获取文件的绝对路径
     const char *absolute_path = get_absolute_path(clang_getCString(file_name));
 
-    // Pos: line 9, column 10
-    printf("Pos: line %d, column %d\n", line, column);
-    printf("File: '%s'\n", absolute_path);
+    // 仅输出目标目录中的文件信息
+    if (strstr(absolute_path, target_dir) != NULL)
+    {
+        printf("(%s):%s\n", get_cursor_kind_spelling(cursor_kind), clang_getCString(cursor_spelling));
+        printf("Pos: line %d, column %d\n", line, column);
+        printf("File: '%s'\n", absolute_path);
 
-    if (clang_getCString(symbol))
-    {
-        // Symbol: '__ZN4Test8sayHelloEv'
-        printf("Symbol: '%s'\n", clang_getCString(symbol));
-    }
-    else
-    {
-        printf("Symbol: None\n");
+        if (clang_getCString(symbol))
+        {
+            printf("Symbol: '%s'\n", clang_getCString(symbol));
+        }
+        else
+        {
+            printf("Symbol: None\n");
+        }
+        printf("----------------------------------------\n");
     }
 
     clang_disposeString(cursor_spelling);
     clang_disposeString(symbol);
-    printf("----------------------------------------\n");
+    clang_disposeString(file_name);
 }
 
 enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
+    const char *target_dir = (const char *)client_data;
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
-    // printf("Cursor kind = %d (%s)\n", cursor_kind, get_cursor_kind_spelling(cursor_kind));
     if (cursor_kind == CXCursor_FunctionDecl || cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_ClassDecl)
     {
-        print_cursor_info(cursor);
+        print_cursor_info(cursor, target_dir);
     }
     return CXChildVisit_Recurse;
 }
@@ -125,11 +127,16 @@ void parse(const char *filename)
         return;
     }
 
+    const char *absolute_path = get_absolute_path(filename); // 获取目标文件的绝对路径
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
-    clang_visitChildren(cursor, visitor, NULL);
+    clang_visitChildren(cursor, visitor, (CXClientData)absolute_path);
 
     clang_disposeTranslationUnit(unit);
     clang_disposeIndex(index);
+    if (absolute_path != filename)
+    {
+        free((void *)absolute_path); // 释放由realpath分配的内存
+    }
 }
 
 int main(int argc, char **argv)
