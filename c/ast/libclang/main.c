@@ -1,5 +1,17 @@
 #include <clang-c/Index.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+// 获取绝对路径
+const char *get_absolute_path(const char *path)
+{
+    char *absolute_path = realpath(path, NULL);
+    if (absolute_path == NULL)
+    {
+        return path;
+    }
+    return absolute_path;
+}
 
 const char *get_cursor_kind_spelling(enum CXCursorKind kind)
 {
@@ -59,15 +71,22 @@ void print_cursor_info(CXCursor cursor)
     CXString symbol = clang_Cursor_getMangling(cursor);
 
     unsigned line, column;
-    clang_getSpellingLocation(location, NULL, &line, &column, NULL);
+    CXFile file;
+    clang_getSpellingLocation(location, &file, &line, &column, NULL);
+    CXString file_name = clang_getFileName(file);
 
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
 
     // (CXXMethod):sayHello
     printf("(%s):%s\n", get_cursor_kind_spelling(cursor_kind), clang_getCString(cursor_spelling));
 
+    // 获取文件的绝对路径
+    const char *absolute_path = get_absolute_path(clang_getCString(file_name));
+
     // Pos: line 9, column 10
     printf("Pos: line %d, column %d\n", line, column);
+    printf("File: '%s'\n", absolute_path);
+
     if (clang_getCString(symbol))
     {
         // Symbol: '__ZN4Test8sayHelloEv'
