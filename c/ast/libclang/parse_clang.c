@@ -16,7 +16,7 @@ enum CXChildVisitResult enumValueVisitor(CXCursor c, CXCursor parent, CXClientDa
 enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
     enum CXCursorKind kind = clang_getCursorKind(cursor);
-    CXString name, enumName, argName, argType;
+    CXString name, argName, argType;
     int numArgs, i;
     unsigned int numTokens, j;
     CXToken *tokens;
@@ -25,8 +25,9 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
     switch (kind)
     {
     case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod: // 处理C++方法
         name = clang_getCursorSpelling(cursor);
-        printf("Function: %s\n", clang_getCString(name));
+        printf("%s: %s\n", (kind == CXCursor_FunctionDecl) ? "Function" : "Method", clang_getCString(name));
         clang_disposeString(name);
 
         numArgs = clang_Cursor_getNumArguments(cursor);
@@ -41,6 +42,15 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
         }
         printf("\n");
         break;
+
+    case CXCursor_ClassDecl: // 处理类声明
+        name = clang_getCursorSpelling(cursor);
+        printf("Class: %s\n", clang_getCString(name));
+        clang_disposeString(name);
+        // 递归访问类的成员
+        clang_visitChildren(cursor, visitor, NULL);
+        break;
+
     case CXCursor_MacroDefinition:
         name = clang_getCursorSpelling(cursor);
         tu = clang_Cursor_getTranslationUnit(cursor);
@@ -56,6 +66,7 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
         printf("\n");
         clang_disposeTokens(tu, tokens, numTokens);
         break;
+
     default:
         // Optionally handle other kinds or add a default handler
         break;
