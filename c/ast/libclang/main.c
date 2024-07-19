@@ -64,6 +64,16 @@ const char *get_cursor_kind_spelling(enum CXCursorKind kind)
     }
 }
 
+// 获取返回值类型的字符串表示
+const char *get_type_spelling(CXType type)
+{
+    CXString type_spelling = clang_getTypeSpelling(type);
+    const char *type_cstr = clang_getCString(type_spelling);
+    char *result = strdup(type_cstr);
+    clang_disposeString(type_spelling);
+    return result;
+}
+
 void print_cursor_info(CXCursor cursor, const char *target_dir)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
@@ -96,6 +106,29 @@ void print_cursor_info(CXCursor cursor, const char *target_dir)
         {
             printf("Symbol: None\n");
         }
+
+        // 输出返回值类型
+        if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl)
+        {
+            CXType return_type = clang_getCursorResultType(cursor);
+            const char *return_type_spelling = get_type_spelling(return_type);
+            printf("Return Type: %s\n", return_type_spelling);
+            free((void *)return_type_spelling);
+
+            // 输出参数信息
+            int num_args = clang_Cursor_getNumArguments(cursor);
+            printf("Parameters: (");
+            for (int i = 0; i < num_args; ++i)
+            {
+                CXCursor arg_cursor = clang_Cursor_getArgument(cursor, i);
+                CXType arg_type = clang_getCursorType(arg_cursor);
+                const char *arg_type_spelling = get_type_spelling(arg_type);
+                printf("%s%s", arg_type_spelling, (i < num_args - 1) ? ", " : "");
+                free((void *)arg_type_spelling);
+            }
+            printf(")\n");
+        }
+
         printf("----------------------------------------\n");
     }
 
