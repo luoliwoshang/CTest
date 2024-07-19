@@ -1,17 +1,17 @@
 #ifndef TEST_H
 #define TEST_H
 
-
-
-class Test
+namespace MyNamespace
 {
-public:
-    void sayHello();
-};
 
-class Foo
-{
-public:
-    void sayHello();
-};
+    class Test
+    {
+    public:
+        void sayHello();
+        int add(int a, int b);
+        void printMessage(const char *message);
+    };
+
+} // namespace MyNamespace
+
 #endif // TEST_H

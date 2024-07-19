@@ -146,6 +146,10 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
 {
     const char *target_dir = (const char *)client_data;
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
+    if (cursor_kind == CXCursor_Namespace)
+    {
+        printf("(Namespace): %s\n---------------------\n", clang_getCString(clang_getCursorSpelling(cursor)));
+    }
     if (cursor_kind == CXCursor_FunctionDecl || cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_ClassDecl)
     {
         print_cursor_info(cursor, target_dir);
