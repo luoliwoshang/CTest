@@ -142,8 +142,12 @@ void print_cursor_info(CXCursor cursor, Context *context)
         {
             CXCursor arg_cursor = clang_Cursor_getArgument(cursor, i);
             CXType arg_type = clang_getCursorType(arg_cursor);
+            CXString arg_str = clang_getCursorSpelling(arg_cursor);
+            const char *arg_cstr = clang_getCString(arg_str);
+
             const char *arg_type_spelling = get_type_spelling(arg_type);
-            printf("%s%s", arg_type_spelling, (i < num_args - 1) ? ", " : "");
+            printf("%s %s%s", arg_type_spelling, arg_cstr, (i < num_args - 1) ? ", " : "");
+            clang_disposeString(arg_str);
             free((void *)arg_type_spelling);
         }
         printf(")\n");
