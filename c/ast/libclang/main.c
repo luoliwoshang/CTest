@@ -7,13 +7,10 @@
 const char *get_absolute_path(const char *path)
 {
     char *absolute_path = realpath(path, NULL);
-    if (absolute_path == NULL)
-    {
-        return path;
-    }
-    return absolute_path;
+    return absolute_path ? absolute_path : path;
 }
 
+// 获取光标类型的字符串表示
 const char *get_cursor_kind_spelling(enum CXCursorKind kind)
 {
     switch (kind)
@@ -64,7 +61,7 @@ const char *get_cursor_kind_spelling(enum CXCursorKind kind)
     }
 }
 
-// 获取返回值类型的字符串表示
+// 获取类型的字符串表示
 const char *get_type_spelling(CXType type)
 {
     CXString type_spelling = clang_getTypeSpelling(type);
@@ -74,23 +71,38 @@ const char *get_type_spelling(CXType type)
     return result;
 }
 
-// 用于存储当前的命名空间和类名
+// 用于存储当前的命名空间和类名的上下文结构
 typedef struct
 {
-    char namespace_name[1024];
-    char class_name[1024];
+    char *namespace_name; // 当前命名空间名称
+    char *class_name;     // 当前类名
 } Context;
 
+// 初始化上下文
 void init_context(Context *context)
 {
-    context->namespace_name[0] = '\0';
-    context->class_name[0] = '\0';
+    context->namespace_name = NULL;
+    context->class_name = NULL;
 }
 
+// 释放上下文中的动态内存
+void free_context(Context *context)
+{
+    free(context->namespace_name);
+    free(context->class_name);
+}
+
+// 设置上下文名称（命名空间或类名）
+void set_context_name(char **context_name, const char *new_name)
+{
+    free(*context_name);
+    *context_name = new_name ? strdup(new_name) : NULL;
+}
+
+// 打印光标信息
 void print_cursor_info(CXCursor cursor, Context *context)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
-
     CXString cursor_spelling = clang_getCursorSpelling(cursor);
     CXString symbol = clang_Cursor_getMangling(cursor);
 
@@ -102,11 +114,11 @@ void print_cursor_info(CXCursor cursor, Context *context)
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
 
     // 打印命名空间:类名:函数名
-    if (context->namespace_name[0] != '\0' && context->class_name[0] != '\0')
+    if (context->namespace_name && context->class_name)
     {
         printf("%s:%s:%s\n", context->namespace_name, context->class_name, clang_getCString(cursor_spelling));
     }
-    else if (context->class_name[0] != '\0')
+    else if (context->class_name)
     {
         printf("%s:%s\n", context->class_name, clang_getCString(cursor_spelling));
     }
@@ -127,7 +139,7 @@ void print_cursor_info(CXCursor cursor, Context *context)
         printf("Symbol: None\n");
     }
 
-    // 输出返回值类型
+    // 输出返回值类型和参数信息（仅针对方法和函数）
     if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl)
     {
         CXType return_type = clang_getCursorResultType(cursor);
@@ -160,6 +172,7 @@ void print_cursor_info(CXCursor cursor, Context *context)
     clang_disposeString(file_name);
 }
 
+// 遍历AST的回调函数
 enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
     Context *context = (Context *)client_data;
@@ -167,37 +180,41 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
 
     if (cursor_kind == CXCursor_Namespace)
     {
+        // 处理命名空间
         CXString namespace_name = clang_getCursorSpelling(cursor);
-        snprintf(context->namespace_name, sizeof(context->namespace_name), "%s", clang_getCString(namespace_name));
+        set_context_name(&context->namespace_name, clang_getCString(namespace_name));
         clang_disposeString(namespace_name);
         // 访问命名空间内的所有子元素
         clang_visitChildren(cursor, visitor, context);
         // 访问完成后清除命名空间名称
-        context->namespace_name[0] = '\0';
+        set_context_name(&context->namespace_name, NULL);
     }
     else if (cursor_kind == CXCursor_ClassDecl)
     {
+        // 处理类声明
         CXString class_name = clang_getCursorSpelling(cursor);
-        snprintf(context->class_name, sizeof(context->class_name), "%s", clang_getCString(class_name));
+        set_context_name(&context->class_name, clang_getCString(class_name));
         clang_disposeString(class_name);
         // 访问类内的所有子元素
         clang_visitChildren(cursor, visitor, context);
         // 访问完成后清除类名称
-        context->class_name[0] = '\0';
+        set_context_name(&context->class_name, NULL);
     }
     else if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl)
     {
+        // 处理方法和函数声明
         print_cursor_info(cursor, context);
     }
     else
     {
-        // 对于非命名空间和非类声明的其他类型的光标，进行全局访问
+        // 对于其他类型的光标，继续遍历子元素
         clang_visitChildren(cursor, visitor, context);
     }
 
     return CXChildVisit_Continue;
 }
 
+// 解析C++文件
 void parse(const char *filename)
 {
     CXIndex index = clang_createIndex(0, 0);
@@ -214,6 +231,8 @@ void parse(const char *filename)
     init_context(&context);
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     clang_visitChildren(cursor, visitor, &context);
+
+    free_context(&context);
 
     clang_disposeTranslationUnit(unit);
     clang_disposeIndex(index);

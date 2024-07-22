@@ -1,41 +1,40 @@
-#ifndef TEST_H
-#define TEST_H
+#ifndef ZOO_H
+#define ZOO_H
 
-namespace MyNamespace
+namespace forest
 {
 
-    class Test
+    class Bear
     {
     public:
-        void sayHello();
-        int add(int a, int b);
-        void printMessage(const char *message);
+        void roar();
+        int eat(int berries, int fish);
+        void sleep(const char *where);
     };
 
-} // namespace MyNamespace
+} // namespace forest
 
-// 另外的命名空间
-namespace AnotherNamespace
+namespace ocean
 {
 
-    class AnotherTest
+    class Shark
     {
     public:
-        void sayHello();
-        int add(int a, int b);
-        void printMessage(const char *message);
+        void roar();
+        int eat(int fish, int seals);
+        void sleep(const char *where);
     };
 
-} // namespace AnotherNamespace
+} // namespace ocean
 
-class OutTest
+class Eagle
 {
 public:
-    void sayHello();
-    int add(int a, int b);
-    void printMessage(const char *message);
+    void roar();
+    int eat(int mice, int fish);
+    void sleep(const char *where);
 };
 
-void sayHello();
+void zookeeper();
 
-#endif // TEST_H
+#endif // ZOO_H
