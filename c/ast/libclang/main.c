@@ -170,19 +170,32 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
         CXString namespace_name = clang_getCursorSpelling(cursor);
         snprintf(context->namespace_name, sizeof(context->namespace_name), "%s", clang_getCString(namespace_name));
         clang_disposeString(namespace_name);
+        // 访问命名空间内的所有子元素
+        clang_visitChildren(cursor, visitor, context);
+        // 访问完成后清除命名空间名称
+        context->namespace_name[0] = '\0';
     }
     else if (cursor_kind == CXCursor_ClassDecl)
     {
         CXString class_name = clang_getCursorSpelling(cursor);
         snprintf(context->class_name, sizeof(context->class_name), "%s", clang_getCString(class_name));
         clang_disposeString(class_name);
+        // 访问类内的所有子元素
+        clang_visitChildren(cursor, visitor, context);
+        // 访问完成后清除类名称
+        context->class_name[0] = '\0';
     }
     else if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl)
     {
         print_cursor_info(cursor, context);
     }
+    else
+    {
+        // 对于非命名空间和非类声明的其他类型的光标，进行全局访问
+        clang_visitChildren(cursor, visitor, context);
+    }
 
-    return CXChildVisit_Recurse;
+    return CXChildVisit_Continue;
 }
 
 void parse(const char *filename)
