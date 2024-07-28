@@ -70,11 +70,32 @@ int main() {
                            "    else\n"
                            "        print(mt.__tostring(obj))\n"
                            "    end\n"
-                           "end\n";
+                           "end\n"
+                           "\n"
+                           "-- 使用C API获取元表\n"
+                           "local has_metatable = debug.getmetatable(obj) ~= nil\n"
+                           "print('Has metatable (Lua):', has_metatable)\n";
 
     if (luaL_dostring(L, testcode) != LUA_OK) {
         fprintf(stderr, "Error: %s\n", lua_tostring(L, -1));
     }
+
+    // 使用 lua_getmetatable 来验证元表
+    lua_getglobal(L, "obj");
+    if (lua_getmetatable(L, -1)) {
+        printf("Metatable found using lua_getmetatable\n");
+        // 检查 __tostring 是否存在
+        lua_getfield(L, -1, "__tostring");
+        if (lua_isfunction(L, -1)) {
+            printf("__tostring function found in metatable\n");
+        } else {
+            printf("__tostring function not found in metatable\n");
+        }
+        lua_pop(L, 1); // 弹出 __tostring
+    } else {
+        printf("No metatable found using lua_getmetatable\n");
+    }
+    lua_pop(L, 2); // 弹出元表和 obj
 
     lua_close(L);
     return 0;
