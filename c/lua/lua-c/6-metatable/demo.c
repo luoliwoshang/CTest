@@ -72,7 +72,7 @@ int main() {
                            "    end\n"
                            "end\n"
                            "\n"
-                           "-- 使用C API获取元表\n"
+                           "-- 使用Lua的debug.getmetatable()函数检查元表\n"
                            "local has_metatable = debug.getmetatable(obj) ~= nil\n"
                            "print('Has metatable (Lua):', has_metatable)\n";
 
@@ -88,6 +88,31 @@ int main() {
         lua_getfield(L, -1, "__tostring");
         if (lua_isfunction(L, -1)) {
             printf("__tostring function found in metatable\n");
+
+            // 使用 lua_iscfunction 检查是否是 C 函数
+            if (lua_iscfunction(L, -1)) {
+                printf("__tostring is a C function\n");
+
+                // 使用 lua_tocfunction 获取函数指针
+                lua_CFunction cfunc = lua_tocfunction(L, -1);
+                if (cfunc != NULL) {
+                    printf("Successfully retrieved __tostring C function pointer\n");
+
+                    // 调用获取到的 C 函数
+                    lua_pushcfunction(L, cfunc);
+                    if (lua_pcall(L, 0, 1, 0) == LUA_OK) {
+                        const char *result = lua_tostring(L, -1);
+                        printf("Result of calling __tostring: %s\n", result);
+                    } else {
+                        printf("Error calling __tostring function\n");
+                    }
+                    lua_pop(L, 1); // 弹出函数调用的结果
+                } else {
+                    printf("Failed to retrieve __tostring C function pointer\n");
+                }
+            } else {
+                printf("__tostring is a Lua function\n");
+            }
         } else {
             printf("__tostring function not found in metatable\n");
         }
