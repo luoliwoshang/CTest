@@ -1,3 +1,4 @@
+#include <clang-c/Documentation.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +51,6 @@ const char *get_cursor_kind_spelling(enum CXCursorKind kind) {
         return "FunctionTemplate";
     case CXCursor_CXXAccessSpecifier:
         return "AccessSpecifier";
-    // 可以继续添加其他光标类型的处理
     default:
         return "Unknown";
     }
@@ -93,17 +93,13 @@ void process_complex_type(CXType type, int depth) {
     printf("%s\n", type_spelling);
     free((void *)type_spelling);
 
-    // 处理函数类型
     if (type.kind == CXType_FunctionProto) {
 
-        // 处理返回类型
         CXType return_type = clang_getResultType(type);
         for (int i = 0; i < depth + 1; i++)
             printf("  ");
         printf("Return type:\n");
         process_complex_type(return_type, depth + 2);
-
-        // 处理参数类型
         int num_args = clang_getNumArgTypes(type);
         for (int i = 0; i < num_args; i++) {
             CXType arg_type = clang_getArgType(type, i);
@@ -112,14 +108,10 @@ void process_complex_type(CXType type, int depth) {
             printf("Argument %d:\n", i + 1);
             process_complex_type(arg_type, depth + 2);
         }
-    }
-    // 处理指针类型
-    else if (type.kind == CXType_Pointer) {
+    } else if (type.kind == CXType_Pointer) {
         CXType pointee_type = clang_getPointeeType(type);
         process_complex_type(pointee_type, depth + 1);
-    }
-    // 处理数组类型
-    else if (type.kind == CXType_ConstantArray) {
+    } else if (type.kind == CXType_ConstantArray) {
         CXType element_type = clang_getArrayElementType(type);
         long long array_size = clang_getArraySize(type);
         for (int i = 0; i < depth + 1; i++)
@@ -127,10 +119,18 @@ void process_complex_type(CXType type, int depth) {
         printf("Array size: %lld\n", array_size);
         process_complex_type(element_type, depth + 1);
     }
-    // 可以根据需要添加其他复杂类型的处理
 }
 
 const char *get_cursor_comment(CXCursor cursor) {
+
+    CXComment com = clang_Cursor_getParsedComment(cursor);
+    if (clang_Comment_getKind(com) != CXComment_Null) {
+        printf("Comment structure:\n");
+        // printCommentDetails(comment, 1);
+    } else {
+        printf("No comment found.\n");
+    }
+
     CXString comment = clang_Cursor_getRawCommentText(cursor);
     const char *comment_str = clang_getCString(comment);
     char *result = comment_str ? strdup(comment_str) : NULL;
@@ -140,11 +140,11 @@ const char *get_cursor_comment(CXCursor cursor) {
 
 void print_cursor_location(CXCursor cursor) {
     CXSourceLocation location = clang_getCursorLocation(cursor);
-    unsigned line, column;
+    unsigned line, column, offset;
     CXFile file;
-    clang_getSpellingLocation(location, &file, &line, &column, NULL);
+    clang_getSpellingLocation(location, &file, &line, &column, &offset);
     CXString file_name = clang_getFileName(file);
-    printf("File: '%s', Pos: line %d, column %d\n", clang_getCString(file_name), line, column);
+    printf("File: '%s', Pos: line %d, column %d offset %d\n", clang_getCString(file_name), line, column, offset);
     clang_disposeString(file_name);
 }
 
@@ -194,18 +194,27 @@ void print_marco_info(CXTranslationUnit TU, CXCursor cursor) {
     CXToken *tokens;
     unsigned numTokens;
     clang_tokenize(TU, range, &tokens, &numTokens);
-
     CXString name = clang_getCursorSpelling(cursor);
     printf("Marco Name: %s\n", clang_getCString(name));
     print_cursor_location(cursor);
     printf("Content: ");
+    // unsigned line, column;
+    // CXFile file;
+    // clang_getSpellingLocation(firstLoc, &file, &line, &column, NULL);
+    // printf("Line: %d, Column: %d\n", line, column);
+    // clang_getCString();
+
+    unsigned int total_length = 0;
 
     for (unsigned i = 1; i < numTokens; ++i) {
         CXString spelling = clang_getTokenSpelling(TU, tokens[i]);
+        printf("kind %d ", clang_getTokenKind(tokens[i]));
         printf("%s ", clang_getCString(spelling));
         clang_disposeString(spelling);
     }
+
     printf("\n----------------------------------------\n");
+
     clang_disposeString(name);
 }
 
@@ -222,25 +231,20 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
         clang_visitChildren(cursor, visitor, context);
         set_context_name(&context->namespace_name, NULL);
     } else if (cursor_kind == CXCursor_ClassDecl) {
-        // 处理类声明
         CXString class_name = clang_getCursorSpelling(cursor);
         set_context_name(&context->class_name, clang_getCString(class_name));
         clang_disposeString(class_name);
-        // 访问类内的所有子元素
         clang_visitChildren(cursor, visitor, context);
-        // 访问完成后清除类名称
         set_context_name(&context->class_name, NULL);
     } else if (cursor_kind == CXCursor_CXXMethod || cursor_kind == CXCursor_FunctionDecl) {
         print_func_info(cursor, context);
     } else {
-        // 对于其他类型的光标，继续遍历子元素
         clang_visitChildren(cursor, visitor, context);
     }
 
     return CXChildVisit_Continue;
 }
 
-// 解析C++文件
 void parse(const char *filename) {
     CXIndex index = clang_createIndex(0, 0);
     const char *args[] = {"-x", "c++", "-std=c++11"};
@@ -258,7 +262,6 @@ void parse(const char *filename) {
     clang_visitChildren(cursor, visitor, &context);
 
     free_context(&context);
-
     clang_disposeTranslationUnit(unit);
     clang_disposeIndex(index);
 }
