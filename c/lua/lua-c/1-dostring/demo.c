@@ -1,6 +1,7 @@
-#include <lua.h>
 #include <lauxlib.h>
+#include <lua.h>
 #include <lualib.h>
+#include <pthread.h>
 #include <stdio.h>
 
 int main(void) {
@@ -15,7 +16,7 @@ int main(void) {
     // 运行一段 Lua 代码
     if (luaL_dostring(L, "print('Hello, Lua!')")) {
         fprintf(stderr, "Error: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);  // 从栈中弹出错误信息
+        lua_pop(L, 1); // 从栈中弹出错误信息
     }
     // 关闭 Lua 状态机
     lua_close(L);

@@ -1,12 +1,12 @@
+#include <netdb.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <unistd.h>
 
-int main()
-{
+int main() {
     int sockfd, newsockfd;
     socklen_t clilen;
     char buffer[256];
@@ -18,8 +18,7 @@ int main()
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(1234);
 
-    if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
+    if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("ERROR on binding");
         close(sockfd);
         exit(1);
@@ -33,12 +32,10 @@ int main()
     newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
     printf("Connection accepted.\n");
 
-    while (1)
-    {
+    while (1) {
         memset(buffer, 0, 256);
         read(newsockfd, buffer, 255);
-        if (strcmp(buffer, "exit\n") == 0)
-        {
+        if (strcmp(buffer, "exit\n") == 0) {
             break;
         }
         printf("Received message: %s", buffer);

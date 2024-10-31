@@ -7,7 +7,17 @@
 static const char *reader(lua_State *L, void *data, size_t *size) {
     static char buffer[4096];
     FILE *file = (FILE *)data;
+    // printf("%ld\n", sizeof(buffer));
     *size = fread(buffer, 1, sizeof(buffer), file);
+    // printf("%ld\n", *size);
+    printf("Read %zu bytes:\n", *size);
+    for (size_t i = 0; i < *size; i++) {
+        printf("%02X ", (unsigned char)buffer[i]);
+        if ((i + 1) % 16 == 0)
+            printf("\n");
+    }
+    printf("\n");
+
     return (*size > 0) ? buffer : NULL;
 }
 

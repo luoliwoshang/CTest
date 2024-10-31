@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+typedef struct AAA {
+} AAA;
 
 void print_cursor_info(CXCursor cursor, int depth) {
     CXString cursor_spelling = clang_getCursorSpelling(cursor);

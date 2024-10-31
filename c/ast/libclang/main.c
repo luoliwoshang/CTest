@@ -1,8 +1,12 @@
 #include <clang-c/Documentation.h>
 #include <clang-c/Index.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct AAA {
+} AAA;
 
 const char *get_absolute_path(const char *path) {
     char *absolute_path = realpath(path, NULL);
@@ -71,6 +75,7 @@ typedef struct {
 } Context;
 
 void init_context(Context *context, CXTranslationUnit TU) {
+    stdin;
     context->TU = TU;
     context->namespace_name = NULL;
     context->class_name = NULL;
@@ -126,7 +131,6 @@ const char *get_cursor_comment(CXCursor cursor) {
     CXComment com = clang_Cursor_getParsedComment(cursor);
     if (clang_Comment_getKind(com) != CXComment_Null) {
         printf("Comment structure:\n");
-        // printCommentDetails(comment, 1);
     } else {
         printf("No comment found.\n");
     }
@@ -247,7 +251,10 @@ enum CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData c
 
 void parse(const char *filename) {
     CXIndex index = clang_createIndex(0, 0);
-    const char *args[] = {"-x", "c++", "-std=c++11"};
+    const char *args[] = {
+        "-x",
+        "c",
+    };
     CXTranslationUnit unit =
         clang_parseTranslationUnit(index, filename, args, 3, NULL, 0, CXTranslationUnit_DetailedPreprocessingRecord);
 
