@@ -4,6 +4,14 @@
 
 void visitCursor(CXCursor cursor) {
     enum CXCursorKind kind = clang_getCursorKind(cursor);
+    if (kind == CXCursor_MacroExpansion) {
+        printf("macro expansion: %s\n", clang_getCString(clang_getCursorSpelling(cursor)));
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        unsigned startLine, startColumn, endLine, endColumn;
+        clang_getFileLocation(clang_getRangeStart(range), NULL, &startLine, &startColumn, NULL);
+        clang_getFileLocation(clang_getRangeEnd(range), NULL, &endLine, &endColumn, NULL);
+        printf("macro expansion range start: %d:%d, range end: %d:%d\n", startLine, startColumn, endLine, endColumn);
+    }
     if (kind == CXCursor_TypedefDecl) {
         CXType type = clang_getTypedefDeclUnderlyingType(cursor);
         printf("underlying type: %s\n", clang_getCString(clang_getTypeSpelling(type)));
