@@ -14,7 +14,17 @@ void visitCursor(CXCursor cursor) {
         printf("type declaration kind: %s\n",
                clang_getCString(clang_getCursorKindSpelling(clang_getCursorKind(typeCursor))));
 
+        // 获得这个类型定义的Range，为实际引用中的范围，也就是__FSID_T_TYPE，并不是展开后的
+        // typedef __FSID_T_TYPE NewType;
         CXSourceRange range = clang_getCursorExtent(typeCursor);
+
+        // 尝试从这个范围的开始获得一个Cursor
+        CXSourceLocation location = clang_getRangeStart(range);
+        CXCursor cursorAtLoc = clang_getCursor(clang_Cursor_getTranslationUnit(typeCursor), location);
+        printf("Cursor at range start:\n");
+        printf("  Kind: %s\n", clang_getCString(clang_getCursorKindSpelling(clang_getCursorKind(cursorAtLoc))));
+        printf("  Spelling: %s\n", clang_getCString(clang_getCursorSpelling(cursorAtLoc)));
+
         CXToken *tokens;
         unsigned numTokens;
         clang_tokenize(clang_Cursor_getTranslationUnit(typeCursor), range, &tokens, &numTokens);
