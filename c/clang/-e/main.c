@@ -8,3 +8,5 @@ int main() {
     return 0;
 }
 // clang -E main.c
+
+// https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html
