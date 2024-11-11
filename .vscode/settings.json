@@ -96,6 +96,13 @@
         "__stddef_max_align_t.h": "c",
         "dirent.h": "c",
         "_stdio.h": "c",
-        "_seek_set.h": "c"
+        "_seek_set.h": "c",
+        "test.h": "c",
+        "_size_t.h": "c",
+        "stdint.h": "c",
+        "wchar.h": "c",
+        "_ino_t.h": "c",
+        "alloca.h": "c",
+        "_ct_rune_t.h": "c"
     }
 }

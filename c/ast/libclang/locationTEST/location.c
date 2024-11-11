@@ -1,6 +1,10 @@
 #include <clang-c/Index.h>
+#include <dirent.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 void visitCursor(CXCursor cursor) {
     enum CXCursorKind kind = clang_getCursorKind(cursor);
@@ -11,6 +15,18 @@ void visitCursor(CXCursor cursor) {
         clang_getFileLocation(clang_getRangeStart(range), NULL, &startLine, &startColumn, NULL);
         clang_getFileLocation(clang_getRangeEnd(range), NULL, &endLine, &endColumn, NULL);
         printf("macro expansion range start: %d:%d, range end: %d:%d\n", startLine, startColumn, endLine, endColumn);
+
+        // 获取宏展开的标记（tokens）
+        CXToken *tokens;
+        unsigned numTokens;
+        clang_tokenize(clang_Cursor_getTranslationUnit(cursor), range, &tokens, &numTokens);
+
+        printf("Macro expansion tokens:\n");
+        for (unsigned i = 0; i < numTokens; i++) {
+            CXString tokenSpelling = clang_getTokenSpelling(clang_Cursor_getTranslationUnit(cursor), tokens[i]);
+            printf("  %s\n", clang_getCString(tokenSpelling));
+            clang_disposeString(tokenSpelling);
+        }
     }
     if (kind == CXCursor_TypedefDecl) {
         CXType type = clang_getTypedefDeclUnderlyingType(cursor);
