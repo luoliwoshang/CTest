@@ -1,0 +1,101 @@
+[
+  {
+    "path": "./main.c",
+    "incPath": "",
+    "doc": {
+      "_Type": "File",
+      "decls": [
+        {
+          "_Type": "FuncDecl",
+          "Loc": {
+            "_Type": "Location",
+            "File": "./main.c"
+          },
+          "Doc": null,
+          "Parent": null,
+          "Name": {
+            "_Type": "Ident",
+            "Name": "main"
+          },
+          "MangledName": "main",
+          "Type": {
+            "_Type": "FuncType",
+            "Params": {
+              "_Type": "FieldList",
+              "List": null
+            },
+            "Ret": {
+              "_Type": "BuiltinType",
+              "Kind": 6,
+              "Flags": 0
+            }
+          },
+          "IsInline": false,
+          "IsStatic": false,
+          "IsConst": false,
+          "IsExplicit": false,
+          "IsConstructor": false,
+          "IsDestructor": false,
+          "IsVirtual": false,
+          "IsOverride": false
+        }
+      ],
+      "includes": [
+        {
+          "_Type": "Include",
+          "Path": "stdio.h"
+        }
+      ],
+      "macros": [
+        {
+          "_Type": "Macro",
+          "Name": "A",
+          "Tokens": [
+            {
+              "_Type": "Token",
+              "Token": 3,
+              "Lit": "A"
+            },
+            {
+              "_Type": "Token",
+              "Token": 4,
+              "Lit": "1"
+            }
+          ]
+        },
+        {
+          "_Type": "Macro",
+          "Name": "OS",
+          "Tokens": [
+            {
+              "_Type": "Token",
+              "Token": 3,
+              "Lit": "OS"
+            },
+            {
+              "_Type": "Token",
+              "Token": 4,
+              "Lit": "\"unix\""
+            }
+          ]
+        },
+        {
+          "_Type": "Macro",
+          "Name": "B",
+          "Tokens": [
+            {
+              "_Type": "Token",
+              "Token": 3,
+              "Lit": "B"
+            },
+            {
+              "_Type": "Token",
+              "Token": 4,
+              "Lit": "2"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]
