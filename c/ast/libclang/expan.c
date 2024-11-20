@@ -3,37 +3,102 @@
 #include <stdio.h>
 #include <string.h>
 
+void print_token_info(CXTranslationUnit tu, CXToken token) {
+    CXString spelling = clang_getTokenSpelling(tu, token);
+    CXTokenKind kind = clang_getTokenKind(token);
+
+    // 获取token的位置
+    CXSourceLocation loc = clang_getTokenLocation(tu, token);
+
+    // 获取拼写位置（原始位置）
+    CXFile spelling_file;
+    unsigned spelling_line, spelling_column, spelling_offset;
+    clang_getSpellingLocation(loc, &spelling_file, &spelling_line, &spelling_column, &spelling_offset);
+
+    // 获取展开位置
+    CXFile expansion_file;
+    unsigned expansion_line, expansion_column, expansion_offset;
+    clang_getExpansionLocation(loc, &expansion_file, &expansion_line, &expansion_column, &expansion_offset);
+
+    // 获取文件名
+    CXString spelling_filename = clang_getFileName(spelling_file);
+    CXString expansion_filename = clang_getFileName(expansion_file);
+
+    const char *kind_str;
+    switch (kind) {
+    case CXToken_Punctuation:
+        kind_str = "Punctuation";
+        break;
+    case CXToken_Keyword:
+        kind_str = "Keyword";
+        break;
+    case CXToken_Identifier:
+        kind_str = "Identifier";
+        break;
+    case CXToken_Literal:
+        kind_str = "Literal";
+        break;
+    case CXToken_Comment:
+        kind_str = "Comment";
+        break;
+    default:
+        kind_str = "Unknown";
+        break;
+    }
+
+    printf("Token: %s\n", clang_getCString(spelling));
+    printf("  Kind: %s\n", kind_str);
+    printf("  Spelling Location: %s:%u:%u\n", clang_getCString(spelling_filename), spelling_line, spelling_column);
+    printf("  Expansion Location: %s:%u:%u\n", clang_getCString(expansion_filename), expansion_line, expansion_column);
+    printf("\n");
+
+    clang_disposeString(spelling);
+    clang_disposeString(spelling_filename);
+    clang_disposeString(expansion_filename);
+}
+
 // 处理游标的回调函数
 enum CXChildVisitResult visitCursor(CXCursor cursor, CXCursor parent, CXClientData client_data) {
     if (clang_getCursorKind(cursor) == CXCursor_TypedefDecl) {
         CXString name = clang_getCursorSpelling(cursor);
         if (strcmp(clang_getCString(name), "NewType") == 0) {
+            printf("Found typedef NewType:\n");
+
+            // 获取typedef的范围
+            CXSourceRange typedef_range = clang_getCursorExtent(cursor);
+
             // 获取底层类型
             CXType underlying_type = clang_getTypedefDeclUnderlyingType(cursor);
+            printf("Underlying type: %s\n", clang_getCString(clang_getTypeSpelling(underlying_type)));
 
-            // 获取类型声明的位置
-            CXCursor type_decl = clang_getTypeDeclaration(underlying_type);
+            // 获取该范围内的所有tokens
+            CXTranslationUnit tu = clang_Cursor_getTranslationUnit(cursor);
+            CXToken *tokens;
+            unsigned num_tokens;
+            clang_tokenize(tu, typedef_range, &tokens, &num_tokens);
 
-            if (!clang_Cursor_isNull(type_decl)) {
-                // 获取类型声明的范围
-                CXSourceRange range = clang_getCursorExtent(type_decl);
-
-                // 获取该范围内的所有tokens
-                CXTranslationUnit tu = clang_Cursor_getTranslationUnit(cursor);
-                CXToken *tokens;
-                unsigned num_tokens;
-                clang_tokenize(tu, range, &tokens, &num_tokens);
-
-                printf("Type declaration tokens:\n");
-                for (unsigned i = 0; i < num_tokens; i++) {
-                    CXString token_spelling = clang_getTokenSpelling(tu, tokens[i]);
-                    printf("%s ", clang_getCString(token_spelling));
-                    clang_disposeString(token_spelling);
-                }
-                printf("\n");
-
-                clang_disposeTokens(tu, tokens, num_tokens);
+            printf("\nTokens in typedef declaration:\n");
+            for (unsigned i = 0; i < num_tokens; i++) {
+                print_token_info(tu, tokens[i]);
             }
+
+            // 获取展开后的类型定义
+            CXCursor type_ref = clang_getTypeDeclaration(underlying_type);
+            if (!clang_Cursor_isNull(type_ref)) {
+                CXSourceRange type_range = clang_getCursorExtent(type_ref);
+                CXToken *expanded_tokens;
+                unsigned num_expanded_tokens;
+                clang_tokenize(tu, type_range, &expanded_tokens, &num_expanded_tokens);
+
+                printf("\nTokens in expanded type definition:\n");
+                for (unsigned i = 0; i < num_expanded_tokens; i++) {
+                    print_token_info(tu, expanded_tokens[i]);
+                }
+
+                clang_disposeTokens(tu, expanded_tokens, num_expanded_tokens);
+            }
+
+            clang_disposeTokens(tu, tokens, num_tokens);
         }
         clang_disposeString(name);
     }
@@ -60,7 +125,8 @@ int main() {
     const char *args[] = {
         "-x", "c", // 指定语言为C
         "-I.",     // 包含当前目录
-        "-E"       // 启用预处理
+        "-E",      // 启用预处理
+        "-v"       // 显示详细信息
     };
 
     // 解析翻译单元
