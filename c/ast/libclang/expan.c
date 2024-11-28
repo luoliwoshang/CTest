@@ -3,26 +3,33 @@
 #include <stdio.h>
 #include <string.h>
 
+void print_macro_expansion(CXTranslationUnit tu, CXSourceRange range) {
+    CXToken *tokens;
+    unsigned num_tokens;
+    clang_tokenize(tu, range, &tokens, &num_tokens);
+
+    printf("Macro expansion:\n");
+    for (unsigned i = 0; i < num_tokens; i++) {
+        CXString spelling = clang_getTokenSpelling(tu, tokens[i]);
+        printf("  %s", clang_getCString(spelling));
+        clang_disposeString(spelling);
+    }
+    printf("\n");
+
+    clang_disposeTokens(tu, tokens, num_tokens);
+}
+
 void print_token_info(CXTranslationUnit tu, CXToken token) {
     CXString spelling = clang_getTokenSpelling(tu, token);
     CXTokenKind kind = clang_getTokenKind(token);
 
-    // 获取token的位置
     CXSourceLocation loc = clang_getTokenLocation(tu, token);
 
-    // 获取拼写位置（原始位置）
-    CXFile spelling_file;
-    unsigned spelling_line, spelling_column, spelling_offset;
-    clang_getSpellingLocation(loc, &spelling_file, &spelling_line, &spelling_column, &spelling_offset);
+    CXFile file;
+    unsigned line, column, offset;
+    clang_getExpansionLocation(loc, &file, &line, &column, &offset);
 
-    // 获取展开位置
-    CXFile expansion_file;
-    unsigned expansion_line, expansion_column, expansion_offset;
-    clang_getExpansionLocation(loc, &expansion_file, &expansion_line, &expansion_column, &expansion_offset);
-
-    // 获取文件名
-    CXString spelling_filename = clang_getFileName(spelling_file);
-    CXString expansion_filename = clang_getFileName(expansion_file);
+    CXString filename = clang_getFileName(file);
 
     const char *kind_str;
     switch (kind) {
@@ -48,67 +55,61 @@ void print_token_info(CXTranslationUnit tu, CXToken token) {
 
     printf("Token: %s\n", clang_getCString(spelling));
     printf("  Kind: %s\n", kind_str);
-    printf("  Spelling Location: %s:%u:%u\n", clang_getCString(spelling_filename), spelling_line, spelling_column);
-    printf("  Expansion Location: %s:%u:%u\n", clang_getCString(expansion_filename), expansion_line, expansion_column);
-    printf("\n");
+    printf("  Location: %s:%u:%u\n", clang_getCString(filename), line, column);
 
     clang_disposeString(spelling);
-    clang_disposeString(spelling_filename);
-    clang_disposeString(expansion_filename);
+    clang_disposeString(filename);
 }
 
-// 处理游标的回调函数
 enum CXChildVisitResult visitCursor(CXCursor cursor, CXCursor parent, CXClientData client_data) {
-    if (clang_getCursorKind(cursor) == CXCursor_TypedefDecl) {
-        CXString name = clang_getCursorSpelling(cursor);
-        if (strcmp(clang_getCString(name), "NewType") == 0) {
-            printf("Found typedef NewType:\n");
-
-            // 获取typedef的范围
-            CXSourceRange typedef_range = clang_getCursorExtent(cursor);
-
-            // 获取底层类型
-            CXType underlying_type = clang_getTypedefDeclUnderlyingType(cursor);
-            printf("Underlying type: %s\n", clang_getCString(clang_getTypeSpelling(underlying_type)));
-
-            // 获取该范围内的所有tokens
-            CXTranslationUnit tu = clang_Cursor_getTranslationUnit(cursor);
-            CXToken *tokens;
-            unsigned num_tokens;
-            clang_tokenize(tu, typedef_range, &tokens, &num_tokens);
-
-            printf("\nTokens in typedef declaration:\n");
-            for (unsigned i = 0; i < num_tokens; i++) {
-                print_token_info(tu, tokens[i]);
-            }
-
-            // 获取展开后的类型定义
-            CXCursor type_ref = clang_getTypeDeclaration(underlying_type);
-            if (!clang_Cursor_isNull(type_ref)) {
-                CXSourceRange type_range = clang_getCursorExtent(type_ref);
-                CXToken *expanded_tokens;
-                unsigned num_expanded_tokens;
-                clang_tokenize(tu, type_range, &expanded_tokens, &num_expanded_tokens);
-
-                printf("\nTokens in expanded type definition:\n");
-                for (unsigned i = 0; i < num_expanded_tokens; i++) {
-                    print_token_info(tu, expanded_tokens[i]);
-                }
-
-                clang_disposeTokens(tu, expanded_tokens, num_expanded_tokens);
-            }
-
-            clang_disposeTokens(tu, tokens, num_tokens);
-        }
-        clang_disposeString(name);
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    if (clang_Location_isInSystemHeader(loc)) {
+        return CXChildVisit_Continue;
     }
-    return CXChildVisit_Continue;
+
+    enum CXCursorKind kind = clang_getCursorKind(cursor);
+    CXString name = clang_getCursorSpelling(cursor);
+    const char *cursor_name = clang_getCString(name);
+
+    // 专门处理宏展开
+    if (kind == CXCursor_MacroExpansion) {
+        printf("Found macro expansion: %s\n", cursor_name);
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        CXTranslationUnit tu = clang_Cursor_getTranslationUnit(cursor);
+        print_macro_expansion(tu, range);
+        printf("\n");
+    }
+    // 处理 typedef
+    else if (kind == CXCursor_TypedefDecl && strcmp(cursor_name, "NewType") == 0) {
+        printf("Found typedef NewType:\n");
+
+        CXType underlying_type = clang_getTypedefDeclUnderlyingType(cursor);
+        CXString type_spelling = clang_getTypeSpelling(underlying_type);
+        printf("Underlying type: %s\n\n", clang_getCString(type_spelling));
+
+        CXSourceRange cursor_range = clang_getCursorExtent(cursor);
+        CXTranslationUnit tu = clang_Cursor_getTranslationUnit(cursor);
+
+        CXToken *tokens;
+        unsigned num_tokens;
+        clang_tokenize(tu, cursor_range, &tokens, &num_tokens);
+
+        for (unsigned i = 0; i < num_tokens; i++) {
+            print_token_info(tu, tokens[i]);
+            printf("\n");
+        }
+
+        clang_disposeTokens(tu, tokens, num_tokens);
+        clang_disposeString(type_spelling);
+    }
+
+    clang_disposeString(name);
+    return CXChildVisit_Recurse;
 }
 
 int main() {
-    CXIndex index = clang_createIndex(0, 0);
+    CXIndex index = clang_createIndex(0, 1); // 启用诊断输出
 
-    // 创建测试用的源文件内容
     const char *def_content = "#define __FSID_T_TYPE \\\n"
                               "    struct { \\\n"
                               "        int __val[2]; \\\n"
@@ -117,37 +118,28 @@ int main() {
     const char *ref_content = "#include \"def.h\"\n"
                               "typedef __FSID_T_TYPE NewType;\n";
 
-    // 设置未保存的文件
     struct CXUnsavedFile unsaved_files[] = {{"def.h", def_content, strlen(def_content)},
                                             {"ref.h", ref_content, strlen(ref_content)}};
 
-    // 设置编译参数
     const char *args[] = {
-        "-x", "c", // 指定语言为C
-        "-I.",     // 包含当前目录
-        "-E",      // 启用预处理
-        "-v"       // 显示详细信息
+        "-xc", // 指定C语言
+        "-I.",
+        "-v" // 详细输出
     };
 
-    // 解析翻译单元
-    CXTranslationUnit tu = clang_parseTranslationUnit(index,
-                                                      "ref.h", // 主文件名
-                                                      args,    // 命令行参数
-                                                      4,       // 参数数量
-                                                      unsaved_files,
-                                                      2, // 未保存文件数量
-                                                      CXTranslationUnit_DetailedPreprocessingRecord);
+    unsigned options = CXTranslationUnit_DetailedPreprocessingRecord | CXTranslationUnit_KeepGoing |
+                       CXTranslationUnit_SkipFunctionBodies;
+
+    CXTranslationUnit tu = clang_parseTranslationUnit(index, "ref.h", args, 3, unsaved_files, 2, options);
 
     if (!tu) {
         printf("Failed to parse translation unit\n");
         return 1;
     }
 
-    // 遍历AST
     CXCursor cursor = clang_getTranslationUnitCursor(tu);
     clang_visitChildren(cursor, visitCursor, NULL);
 
-    // 清理资源
     clang_disposeTranslationUnit(tu);
     clang_disposeIndex(index);
 

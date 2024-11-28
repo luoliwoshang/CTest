@@ -4,6 +4,7 @@
 
 int main() {
     int a = 5;
+    size_t s;
     printf("Square of %d is %d\n", a, SQUARE(a));
     return 0;
 }

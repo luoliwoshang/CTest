@@ -103,6 +103,10 @@
         "wchar.h": "c",
         "_ino_t.h": "c",
         "alloca.h": "c",
-        "_ct_rune_t.h": "c"
+        "_ct_rune_t.h": "c",
+        "curl.h": "c",
+        "test.C": "cpp",
+        "errno.h": "c",
+        "_errno_t.h": "c"
     }
 }
